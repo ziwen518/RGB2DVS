@@ -1,0 +1,38 @@
+# Data, caches, checkpoints, and generated experiment output are never committed.
+data/
+runs/
+results/
+outputs/
+checkpoints/
+cache/
+teacher_cache/
+logs/
+*.log
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+*.bin
+*.aedat
+*.h5
+*.hdf5
+*.tar
+*.tar.gz
+*.zip
+
+# Local environments and generated Python files.
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor and OS files.
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

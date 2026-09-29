@@ -1,0 +1,67 @@
+{
+  "source_snapshot_date": "2026-09-29",
+  "origin": "RGB2DVS project code tree",
+  "note": "Original source files retained byte-for-byte; repository-local documentation and smoke test were added.",
+  "files": [
+    {
+      "path": "code/core/model.py",
+      "sha256": "bf7e9ce4a35794e980153beb162ee41b8bbdf3547cde082af12e8be04c6d804d"
+    },
+    {
+      "path": "code/core/data.py",
+      "sha256": "0c2d640317f9b7f4ace0b21ec398e730dcc387f7da64f7bb8985db0054e30a6d"
+    },
+    {
+      "path": "code/train/train_clean_observable_spikeformer.py",
+      "sha256": "9bd10850ffb2c9a349b4736fa1a6a9cd6f96b1a6ff46f2eb1eaae5c9305231b3"
+    },
+    {
+      "path": "code/train/train_clean_observable_spikeformer_eval_safe.py",
+      "sha256": "52187491501420fae6be955774e4fbcf58ce501053f795c0eb1e5491ee3220aa"
+    },
+    {
+      "path": "code/tools/build_teacher_cache.py",
+      "sha256": "8d9d581358f9d3280130aa29e63261f8676955e557328a2a7306e391b9027ab1"
+    },
+    {
+      "path": "code/tools/build_observable_rgb_cache.py",
+      "sha256": "24aa6f71460e08b214b895285c1a22c4ede670ab015fcc3c05c34a772ea44568"
+    },
+    {
+      "path": "code/tools/build_ncaltech_rgb_cache.py",
+      "sha256": "6517acd41d34c7adad60f2becd838d073a11b440de81655c111ec7f032237751"
+    },
+    {
+      "path": "code/tools/build_ncaltech_observable_target.py",
+      "sha256": "44db55cd77a7da06637dd5fe614b20f9364b7691fcd2270192acea621e1cdbc7"
+    },
+    {
+      "path": "code/tools/build_ncaltech_event_cache.py",
+      "sha256": "7fe26ae13f631b47ac20211b66d6c4940a371e365b012a3a9c4928abc795bd20"
+    },
+    {
+      "path": "code/tools/generate_motion_events.py",
+      "sha256": "486b8ee88122cf4f658b20b25da399bf70de8e6f57b7884817d45ac23eb96664"
+    },
+    {
+      "path": "code/tools/generate_rcls_gpu_batch.py",
+      "sha256": "aab90a90d0f766efe2b35d4e07b2d0a8be70a149385a81714e5e4b575856eb40"
+    },
+    {
+      "path": "code/tools/teacher_inputs.py",
+      "sha256": "dd364d6a80ca130704c2af9fc8c2af7dc7cfaaf9f196892f62d4d97c68d9f4a7"
+    },
+    {
+      "path": "code/tools/evaluate_event_classification.py",
+      "sha256": "6453d88470eb46c0e63f9764ca93e1a5edc9ef8bb6860ff7b6ae08fb0955ce3c"
+    },
+    {
+      "path": "code/tools/evaluate_fewshot_lp_ft_cifar10dvs.py",
+      "sha256": "4d3c5e7b1260007b0a517e4d2701ad372ac4d61ffab0a3bdf49d799a39b58f48"
+    },
+    {
+      "path": "code/tools/evaluate_downstream_protocols.py",
+      "sha256": "5a6f295a10199cf3fe0c58c6db92a1000cbcbf7adc466b79a15a968aca687f81"
+    }
+  ]
+}
