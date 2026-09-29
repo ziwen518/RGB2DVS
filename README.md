@@ -6,13 +6,13 @@ The released training entry point uses a four-block, 384-dimensional PureSpikeFo
 
 ## Method overview
 
-![DCEOD architecture from the paper](architecture_dceod.jpg)
+![DCEOD architecture from the paper](image/architecture_dceod.jpg)
 
 The overview shows the training-time teacher and event-observable bridge, together with the deployed event-only student path. The teacher and bridge define which semantic information is transferred; the deployed encoder processes only event frames.
 
 ### PureSpikeFormer block
 
-![PureSpikeFormer spiking Transformer block from the paper](purespikeformer_block.png)
+![PureSpikeFormer spiking Transformer block from the paper](image/purespikeformer_block.png)
 
 The block uses binary Q/K/V spike tokens for global interaction and a dilated local event-feature path to preserve neighborhood structure before fusion. Membrane states remain internal to the spiking computation. The training example below enables the local-structure path shown here.
 
@@ -22,21 +22,35 @@ The paper includes layer-wise PCA-to-RGB maps on CIFAR10-RCLS and N-Caltech101. 
 
 ### CIFAR10-RCLS
 
-![CIFAR10-RCLS patch-feature PCA from events through the signed readout](pca_cifar10_rcls.png)
+![CIFAR10-RCLS patch-feature PCA from events through the signed readout](image/pca_cifar10_rcls.png)
 
 Four held-out examples are shown with their ON/OFF events, paired RGB images, and PCA maps from Blocks 1, 2, 4, and the signed readout.
 
 ### N-Caltech101
 
-![N-Caltech101 patch-feature PCA, including Faces_easy](pca_ncaltech_layers.png)
+![N-Caltech101 patch-feature PCA, including Faces_easy](image/pca_ncaltech_layers.png)
 
 The displayed categories include `Faces_easy`, `Leopards`, and `Motorbikes`; the figure follows the paper's layer-wise PCA-to-RGB protocol.
 
 ### Matched student comparison
 
-![Patch-level PCA of RGB, event, teacher, and student representations](representation_pca_ncaltech.png)
+![Patch-level PCA of RGB, event, teacher, and student representations](image/representation_pca_ncaltech.png)
 
 This comparison uses the same six validation examples for the RGB images, event accumulations, RGB-DINOv2 teacher, and three students. PCA is fitted separately for each model on the same 12 training examples, then applied to validation maps; colors therefore do not correspond across model columns. No test examples are shown. `Addressed consistency` is marked as the main line; that checkpoint is a 4-epoch pilot, while the two historical student checkpoints were trained for 40 epochs. This panel is a qualitative, non-compute-matched comparison. Sample selection and extraction details are recorded in [`representation_pca_provenance.json`](representation_pca_provenance.json).
+
+## Spike-attention affinity
+
+The maps visualize normalized Q-K affinity over spatial key tokens, overlaid on polarity-aware event evidence. They show how the spiking Transformer blocks weight event-supported locations; they are affinity maps, not softmax attention probabilities.
+
+### CIFAR10-RCLS
+
+![CIFAR10-RCLS spike-attention affinity across four blocks](image/attention_cifar10_rcls.png)
+
+### N-Caltech101
+
+![N-Caltech101 spike-attention affinity, including Faces_easy](image/attention_ncaltech.png)
+
+Each figure shows the accumulated ON/OFF event evidence followed by the affinity maps from Blocks 1–4 for four held-out examples. The N-Caltech101 examples include `Faces_easy`, `Leopards`, and `Motorbikes`.
 
 ## Repository contents
 
@@ -86,18 +100,15 @@ The paths are placeholders. Keep datasets, caches, and checkpoints outside Git. 
 
 `code/tools/evaluate_event_classification.py`, `evaluate_fewshot_lp_ft_cifar10dvs.py`, and `evaluate_downstream_protocols.py` provide frozen-feature and downstream evaluation entry points. Report the split, checkpoint, teacher/input modality, label budget, and evaluation head with every score. Do not interpret PCA appearance as a substitute for quantitative evaluation or compare scores from different protocols as if they were the same benchmark.
 
-<details>
-<summary>Quantitative snapshot and full training curves</summary>
+## Quantitative results and training curves
 
 The paper reports 44.0% test accuracy for 45-shot fine-tuning on real CIFAR10-DVS, compared with 28.1% for a linear probe on the same fixed subset (seed 42). The figure also shows layer-wise kNN/target-CKA recovery on CIFAR10-RCLS. Its sensor-calibration panel is an earlier diagnostic and is not directly comparable with the other panels.
 
-![Quantitative results reported in the paper](paper_quantitative_summary.png)
+![Quantitative results reported in the paper](image/paper_quantitative_summary.png)
 
 The following curves show the 150-epoch distillation losses and validation kNN@10 histories for CIFAR10-RCLS and N-Caltech101. Validation labels are used by the detached evaluator, not by the student training objective.
 
-![Student training curves reported in the paper](paper_training_curves.png)
-
-</details>
+![Student training curves reported in the paper](image/paper_training_curves.png)
 
 ## Data and artifacts
 
