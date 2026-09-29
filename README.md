@@ -10,6 +10,12 @@ The current baseline uses a four-block, 384-dimensional PureSpikeFormer with BNT
 
 The paper's overview shows the training-time teacher and event-observable bridge alongside the deployed event-only PureSpikeFormer path. During training, a frozen RGB teacher supplies semantic targets; at inference, the student processes event frames and returns a temporally aggregated representation.
 
+### PureSpikeFormer block
+
+![PureSpikeFormer spiking Transformer block from the paper](purespikeformer_block.png)
+
+The block diagram details the binary Q/K/V spike-token path for global interaction and the dilated local event-feature path used to preserve neighborhood structure before fusion. Membrane states remain internal to the spiking computation.
+
 ## Qualitative patch representations
 
 ![Patch-level PCA of RGB, event, teacher, and student representations](representation_pca_ncaltech.png)
