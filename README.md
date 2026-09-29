@@ -1,49 +1,47 @@
 # RGB-to-DVS Pure-Spike Representation Distillation
 
-Research code for transferring RGB-DINO semantic information into an event-only spiking student. The student consumes DVS frames at inference; teacher caches and datasets are supplied separately and are not part of this repository.
+This repository contains the training and evaluation code for transferring RGB foundation-model semantics to an event-driven spiking representation. During training, paired RGB and DVS observations are used to construct event-observable semantic targets. The PureSpikeFormer student is optimized on DVS inputs; at inference, the RGB teacher, event-side target estimator, bridge, and target cache are not required.
 
-The current baseline uses a four-block, 384-dimensional PureSpikeFormer with BNTT, PLIF neurons, signed spike-rate readout, and DINOv2 ViT-S/14 initialization. Intermediate student communication is binary. The final normalized spike-rate embedding is continuous. Training is label-free for the student objective; validation labels may be used for model selection and representation reporting, and must not be mixed into the training target cache.
+The released training entry point uses a four-block, 384-dimensional PureSpikeFormer with six attention heads, BNTT normalization, PLIF neurons, DINOv2 ViT-S/14 initialization, and a signed spike-rate readout. Intermediate student tokens are binary spikes; the final normalized, rate-coded embedding is continuous. “Label-free” refers to the student representation objective; any supervision used in offline target-cache construction is a separate stage and should be reported with the experiment protocol.
 
-## Method at a glance
+## Method overview
 
 ![DCEOD architecture from the paper](architecture_dceod.jpg)
 
-The paper's overview shows the training-time teacher and event-observable bridge alongside the deployed event-only PureSpikeFormer path. During training, a frozen RGB teacher supplies semantic targets; at inference, the student processes event frames and returns a temporally aggregated representation.
+The overview shows the training-time teacher and event-observable bridge, together with the deployed event-only student path. The teacher and bridge define which semantic information is transferred; the deployed encoder processes only event frames.
 
 ### PureSpikeFormer block
 
 ![PureSpikeFormer spiking Transformer block from the paper](purespikeformer_block.png)
 
-The block diagram details the binary Q/K/V spike-token path for global interaction and the dilated local event-feature path used to preserve neighborhood structure before fusion. Membrane states remain internal to the spiking computation.
+The block uses binary Q/K/V spike tokens for global interaction and a dilated local event-feature path to preserve neighborhood structure before fusion. Membrane states remain internal to the spiking computation. The training example below enables the local-structure path shown here.
 
 ## Qualitative patch representations
 
 ![Patch-level PCA of RGB, event, teacher, and student representations](representation_pca_ncaltech.png)
 
-This N-Caltech101 figure shows the deployed signed semantic readout on the same six validation examples, alongside their RGB images, event accumulations, RGB-DINOv2 teacher maps, and two historical students. The current `Addressed consistency` line is marked in bold; its displayed checkpoint is a 4-epoch pilot, while the historical students were trained for 40 epochs, so this is a qualitative diagnostic and not a compute-matched performance comparison. For each model, PCA is fitted on the same 12 training examples and then applied to the validation maps; colors are independently fitted and are not comparable across columns. No test examples were used. PCA appearance alone does not establish semantic quality; see the recorded downstream evaluation for quantitative results and protocol limits. Figure selection and provenance are recorded in [`representation_pca_provenance.json`](representation_pca_provenance.json).
-
-This is a research prototype. It does not claim ICLR/CVPR acceptance, SOTA performance, measured energy savings, or that the latest experimental architecture has passed its gates. Historical results are tied to their recorded code, split, and evaluation protocol.
+This N-Caltech101 visualization shows six validation examples and their deployed signed semantic readouts. PCA is fitted separately for each model on the same 12 training examples, then applied to the validation maps; colors therefore do not correspond across model columns. No test examples are shown. `Addressed consistency` is marked as the main line; that checkpoint is a 4-epoch pilot, while the two historical student checkpoints were trained for 40 epochs. The figure is useful for inspecting spatial feature structure, but it is not a compute-matched performance comparison. The sample selection and PCA procedure are documented in [`representation_pca_provenance.json`](representation_pca_provenance.json).
 
 ## Repository contents
 
 - `code/core/`: student architecture, event dataset readers, and transforms.
-- `code/train/`: the historical standard trainer and a follow-up evaluation-safe trainer.
-- `code/tools/`: event/RGB teacher-cache preparation, event generation, and representation/downstream evaluation utilities.
-- `tests/`: a synthetic CPU contract smoke test; it downloads no data and updates no weights.
+- `code/train/`: training entry points, including the evaluation-safe trainer.
+- `code/tools/`: teacher-target preparation, event generation, and representation/downstream evaluation utilities.
+- `tests/`: a fast CPU smoke test for the model's tensor and spike-output contract. It uses synthetic input and does not measure representation quality; use the dataset-based evaluation tools for empirical results.
 
-The `_eval_safe.py` trainer avoids indexing a train-only teacher cache for validation examples. It is a later source revision and should be treated as a separate code version when comparing with results produced by the original standard trainer.
+For new runs, use `train_clean_observable_spikeformer_eval_safe.py`. It keeps the train-only target-cache protocol separate from validation. When reporting historical results, record the training entry point and source revision used to produce each checkpoint.
 
-## Environment
+## Environment and software check
 
-Python 3.10 or newer is recommended. Install the packages in `requirements.txt`; install the PyTorch build appropriate for your hardware from the official PyTorch instructions. DINOv2 weights are loaded through the local PyTorch Hub cache when requested and are not included here.
+Python 3.10 or newer is recommended. Install the packages in `requirements.txt` and use a PyTorch build appropriate for your hardware. DINOv2 weights are loaded through the local PyTorch Hub cache when requested; they are not included here.
 
-Run the synthetic architecture check with:
+Run the CPU smoke test with:
 
 ```bash
 python -m pytest -q
 ```
 
-Inspect the training options with:
+Inspect training options with:
 
 ```bash
 python code/train/train_clean_observable_spikeformer_eval_safe.py --help
@@ -51,7 +49,7 @@ python code/train/train_clean_observable_spikeformer_eval_safe.py --help
 
 ## Training
 
-Prepare your own event frames, locked train/validation split manifest, and train-only observable RGB target cache. These files are intentionally excluded. A typical N-Caltech invocation is:
+Prepare event frames, a locked train/validation split manifest, and a train-only observable RGB target cache. These assets are supplied by the user and are not bundled. A typical N-Caltech101 run is:
 
 ```bash
 python code/train/train_clean_observable_spikeformer_eval_safe.py \
@@ -62,17 +60,16 @@ python code/train/train_clean_observable_spikeformer_eval_safe.py \
   --target-cache /path/to/observable_train_targets.pt \
   --output-dir runs/ncaltech101/example \
   --dino-init --signed-readout --multidepth-readout \
+  --local-structure-mixer \
   --gpu 0
 ```
 
-The paths above are placeholders. Do not put datasets, caches, or checkpoints in Git. Each experiment should record the exact code revision, source hashes, split manifest, target-cache provenance, seed, and evaluation protocol.
-
-Cache-construction utilities are in `code/tools/`. Check each tool's `--help` and its dataset license before use. The code does not download or bundle any dataset automatically.
+The paths are placeholders. Keep datasets, caches, and checkpoints outside Git. Record the code revision, source hashes, split manifest, target-cache provenance, seed, and evaluation protocol for each run. Target-cache preparation utilities are in `code/tools/`; check each tool's `--help` and the selected dataset's terms before use.
 
 ## Evaluation
 
-`code/tools/evaluate_event_classification.py`, `evaluate_fewshot_lp_ft_cifar10dvs.py`, and `evaluate_downstream_protocols.py` provide frozen-feature or downstream evaluation entry points. Follow the split and label-budget rules for the selected dataset. Do not compare scores across different splits, teachers, or label budgets as if they were the same benchmark.
+`code/tools/evaluate_event_classification.py`, `evaluate_fewshot_lp_ft_cifar10dvs.py`, and `evaluate_downstream_protocols.py` provide frozen-feature and downstream evaluation entry points. Report the split, checkpoint, teacher/input modality, label budget, and evaluation head with every score. Do not interpret PCA appearance as a substitute for quantitative evaluation or compare scores from different protocols as if they were the same benchmark.
 
 ## Data and artifacts
 
-This repository excludes datasets, raw event streams and RGB images, frame caches, teacher targets, DINO weights, checkpoints, result directories, and logs. The README figures contain only small qualitative visualizations derived from selected samples. The `.gitignore` also blocks common dataset and model-artifact extensions as a safety net.
+The repository does not contain datasets, raw event streams or RGB images, frame caches, teacher targets, DINO weights, checkpoints, result directories, or training logs. The README figures are compact qualitative visualizations derived from selected samples. The `.gitignore` blocks common dataset and model-artifact extensions as an additional safeguard.
