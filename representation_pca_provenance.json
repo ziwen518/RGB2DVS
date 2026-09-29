@@ -1,0 +1,39 @@
+{
+  "figure": "patch_pca_all_students.png",
+  "alternative_formats": ["patch_pca_all_students.pdf", "patch_pca_all_students.svg"],
+  "display_ids": [
+    "events/airplanes/image_0017.bin",
+    "events/airplanes/image_0093.bin",
+    "events/airplanes/image_0409.bin",
+    "events/Leopards/image_0077.bin",
+    "events/Leopards/image_0078.bin",
+    "events/Leopards/image_0115.bin"
+  ],
+  "calibration_ids": [
+    "events/airplanes/image_0001.bin",
+    "events/airplanes/image_0002.bin",
+    "events/airplanes/image_0003.bin",
+    "events/airplanes/image_0004.bin",
+    "events/airplanes/image_0005.bin",
+    "events/airplanes/image_0006.bin",
+    "events/Leopards/image_0001.bin",
+    "events/Leopards/image_0002.bin",
+    "events/Leopards/image_0003.bin",
+    "events/Leopards/image_0004.bin",
+    "events/Leopards/image_0005.bin",
+    "events/Leopards/image_0006.bin"
+  ],
+  "columns": [
+    "RGB image",
+    "Event accumulation",
+    "DINOv2 teacher patch tokens",
+    "Historical Student standard LR",
+    "Historical Student reduced backbone LR",
+    "Addressed consistency Student (current mainline; bold title)"
+  ],
+  "mainline_checkpoint": "addressed_pilot_20260915_v6/relay_consistency/last.pt",
+  "mainline_extraction": "Actual deployed signed semantic readout, time-weighted, per spatial token; shape [18,144,384].",
+  "pca_rule": "Fit separate PCA basis per model on 12 training images, all spatial tokens; project six held-out validation images with that model's train-only basis; colors are not aligned across columns.",
+  "test_accessed": false,
+  "comparison_limit": "Historical Students used 40 epochs and full split; current Addressed consistency is a 512/128, 4-epoch pilot. Figure is qualitative and not compute matched."
+}

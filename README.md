@@ -4,6 +4,18 @@ Research code for transferring RGB-DINO semantic information into an event-only 
 
 The current baseline uses a four-block, 384-dimensional PureSpikeFormer with BNTT, PLIF neurons, signed spike-rate readout, and DINOv2 ViT-S/14 initialization. Intermediate student communication is binary. The final normalized spike-rate embedding is continuous. Training is label-free for the student objective; validation labels may be used for model selection and representation reporting, and must not be mixed into the training target cache.
 
+## Method at a glance
+
+![DCEOD architecture from the paper](architecture_dceod.jpg)
+
+The paper's overview shows the training-time teacher and event-observable bridge alongside the deployed event-only PureSpikeFormer path. During training, a frozen RGB teacher supplies semantic targets; at inference, the student processes event frames and returns a temporally aggregated representation.
+
+## Qualitative patch representations
+
+![Patch-level PCA of RGB, event, teacher, and student representations](representation_pca_ncaltech.png)
+
+This N-Caltech101 figure shows the deployed signed semantic readout on the same six validation examples, alongside their RGB images, event accumulations, RGB-DINOv2 teacher maps, and two historical students. The current `Addressed consistency` line is marked in bold; its displayed checkpoint is a 4-epoch pilot, while the historical students were trained for 40 epochs, so this is a qualitative diagnostic and not a compute-matched performance comparison. For each model, PCA is fitted on the same 12 training examples and then applied to the validation maps; colors are independently fitted and are not comparable across columns. No test examples were used. PCA appearance alone does not establish semantic quality; see the recorded downstream evaluation for quantitative results and protocol limits. Figure selection and provenance are recorded in [`representation_pca_provenance.json`](representation_pca_provenance.json).
+
 This is a research prototype. It does not claim ICLR/CVPR acceptance, SOTA performance, measured energy savings, or that the latest experimental architecture has passed its gates. Historical results are tied to their recorded code, split, and evaluation protocol.
 
 ## Repository contents
@@ -57,4 +69,4 @@ Cache-construction utilities are in `code/tools/`. Check each tool's `--help` an
 
 ## Data and artifacts
 
-This repository excludes datasets, event streams, RGB images, frame caches, teacher targets, DINO weights, checkpoints, result directories, and logs. The `.gitignore` also blocks common dataset and model-artifact extensions as a safety net.
+This repository excludes datasets, raw event streams and RGB images, frame caches, teacher targets, DINO weights, checkpoints, result directories, and logs. The README figures contain only small qualitative visualizations derived from selected samples. The `.gitignore` also blocks common dataset and model-artifact extensions as a safety net.
