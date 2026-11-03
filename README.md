@@ -54,9 +54,13 @@ Each figure shows the accumulated ON/OFF event evidence followed by the affinity
 
 ## Repository contents
 
+See [reproducibility notes](docs/REPRODUCIBILITY.md) for configuration details,
+locked splits, evaluation boundaries, and source provenance.
+
 - `code/core/`: student architecture, event dataset readers, and transforms.
 - `code/train/`: training entry points, including the evaluation-safe trainer.
 - `code/tools/`: teacher-target preparation, event generation, and representation/downstream evaluation utilities.
+- `configs/`: reference experiment definitions and a locked real CIFAR10-DVS split.
 - `tests/`: a fast CPU smoke test for the model's tensor and spike-output contract. It uses synthetic input and does not measure representation quality; use the dataset-based evaluation tools for empirical results.
 
 For new runs, use `train_clean_observable_spikeformer_eval_safe.py`. It keeps the train-only target-cache protocol separate from validation. When reporting historical results, record the training entry point and source revision used to produce each checkpoint.
@@ -112,4 +116,5 @@ The following curves show the 150-epoch distillation losses and validation kNN@1
 
 ## Data and artifacts
 
-The repository does not contain datasets, raw event streams or RGB images, frame caches, teacher targets, DINO weights, checkpoints, result directories, or training logs. The README figures are compact qualitative visualizations derived from selected samples. The `.gitignore` blocks common dataset and model-artifact extensions as an additional safeguard.
+The repository does not contain datasets, raw event streams or RGB images, frame caches, teacher targets, DINO weights, checkpoints, raw result directories, or training logs. A locked split manifest and figure
+provenance metadata are retained for reproducibility. The README figures are compact qualitative visualizations derived from selected samples. The `.gitignore` blocks common dataset and model-artifact extensions as an additional safeguard.

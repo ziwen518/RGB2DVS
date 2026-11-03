@@ -20,10 +20,14 @@ logs/
 *.tar
 *.tar.gz
 *.zip
+*.part
+*.bundle
 
 # Local environments and generated Python files.
 .env
-.venv/
+.env.*
+!.env.example
+.venv*/
 venv/
 __pycache__/
 *.py[cod]
@@ -36,3 +40,20 @@ __pycache__/
 Thumbs.db
 *.swp
 *.swo
+
+# Private research notes, server handoffs, and local backups.
+/.local-backups/
+/private/
+/ICLR/
+/iclr_execution_*/
+/tasks.md
+/任务.md
+/PAPER_DRAFT*.md
+/DOMAIN_GAP_NOVELTY_PLAN.md
+/NOVEL_ARCHITECTURE*.md
+/CVPR_FRAMEWORK_PIPELINE.md
+/ICLR_*.md
+/SPIKECLR_*.md
+/MIGRATION_README.md
+/migration_manifest.json
+/references/papers/
