@@ -43,6 +43,7 @@
   "whiten_pg": 0.35,
   "saliency_floor": 0.1,
   "saliency_alpha": 0.35,
+  "self_saliency_alpha": 0.15,
   "lock_bn_running_stats": true,
   "labels_used": false,
   "seed": 42,
@@ -51,7 +52,10 @@
     "r4_best_allblocks9_sha256": "349de2c6dfde1ece5c5a4503f725e17e55ad41d40ede3612599c6759d4c20ecb",
     "r4_last_purespike_sha256": "efe74fe65b60b8a0400142ac86d4ced76946e7610aae5021f7529fe2c44b1b39",
     "r5_best_emb_sha256": "a8978e1832440db670e4cdb7030537e931f09ea291467a140633099867d46869",
-    "r5_best_purespike_sal_sha256": "cc396138559606b5e8bf94cee1348caf71fc118fbfba1be455ba6595b8a07ab2"
+    "r5_best_purespike_sal_sha256": "cc396138559606b5e8bf94cee1348caf71fc118fbfba1be455ba6595b8a07ab2",
+    "stage3_best_emb_sha256": "0d85d268ad6fe5878a75b2b213e75024638f318d246e716b6b17e8ccd3fc1a09",
+    "stage3_best_purespike_dualsal_sha256": "4bd6f7709fa8e8a691682d6865f697055f440af2205d035f2900107f47d43617",
+    "stage3_last_sha256": "cf66de63f933e43c2426a2094f252524d0359460683d0800e0e2e97cef63d1c7"
   },
   "reported_u1_metrics": {
     "baseline_epoch39_emb_384": {
@@ -66,12 +70,16 @@
       "val_lp_top1": 0.47333333333333333,
       "train_loo_knn": 0.8501483679525222
     },
-    "r5_epoch6_emb_384": {
-      "val_knn_top1": 0.47,
+    "stage3_epoch4_emb_unif_384": {
+      "val_knn_top1": 0.4722222089767456,
+      "train_loo_knn": 0.8519322872161865
+    },
+    "stage3_epoch2_emb_sal_384": {
+      "val_knn_top1": 0.47555556893348694,
       "val_ridge_top1": 0.4488888888888889,
-      "val_lp_top1": 0.4655555486679077,
-      "val_cosine_lp_top1": 0.47777777910232544,
-      "train_loo_knn": 0.8514980673789978
+      "val_lp_top1": 0.47111111879348755,
+      "val_cosine_lp_top1": 0.48000001907348633,
+      "train_loo_knn": 0.8512085676193237
     },
     "r4_epoch12_emb_whiten_384": {
       "val_knn_top1": 0.4866666666666667,
@@ -87,7 +95,7 @@
     },
     "r4_epoch12_purespike_pca384": {
       "val_knn_top1": 0.5011111111111111,
-      "val_ridge_top1": 0.47,
+      "val_ridge_top1": 0.4711111111111111,
       "val_lp_top1": 0.47555555555555556,
       "val_cosine_lp_top1": 0.5077777777777778,
       "train_loo_knn": 0.8256676557863502
@@ -98,6 +106,13 @@
       "val_lp_top1": 0.47333333333333333,
       "val_cosine_lp_top1": 0.5044444444444445,
       "train_loo_knn": 0.8263134956359863
+    },
+    "stage1b_purespike_dualsal_pca384": {
+      "val_knn_top1": 0.5066666666666667,
+      "val_ridge_top1": 0.4666666666666667,
+      "val_lp_top1": 0.4744444489479065,
+      "val_cosine_lp_top1": 0.503333330154419,
+      "train_loo_knn": 0.8261687755584717
     }
   }
 }

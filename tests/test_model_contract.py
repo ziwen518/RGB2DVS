@@ -13,6 +13,7 @@ for _p in (CORE, EVAL, TRAIN):
 from model import PureSpikeFormer  # noqa: E402
 from multidepth_spectral_readout import (  # noqa: E402
     DetachedMultiDepthHead,
+    NextGenMultiDepthSpikingStudent,
     block_whiten_pca384,
     cosine_linear_probe,
     whiten_block,
@@ -46,6 +47,12 @@ def test_small_student_emits_binary_intermediate_tokens_and_finite_embedding():
     assert tokens.shape == (2, 2, 64, 96)
     assert torch.isfinite(output["embedding"]).all()
     assert torch.all((tokens == 0) | (tokens == 1))
+
+    nextgen = NextGenMultiDepthSpikingStudent(model, sal_blend=0.35, sal_floor=0.10).eval()
+    with torch.inference_mode():
+        ng_out = nextgen(events)
+    assert ng_out["embedding"].shape == (2, 96)
+    assert torch.allclose(ng_out["embedding"].norm(dim=-1), torch.ones(2), atol=1e-5)
 
 
 def test_vp_augment_preserves_mean_and_variance():

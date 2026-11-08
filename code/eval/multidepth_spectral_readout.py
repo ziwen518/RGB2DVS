@@ -108,6 +108,71 @@ class DetachedMultiDepthHead(nn.Module):
         return fused, cat_feat
 
 
+class NextGenMultiDepthSpikingStudent(nn.Module):
+    """PureSpikeFormer wrapper with zero-init multi-depth spiking readout & event-saliency spatial pooling."""
+
+    def __init__(self, base_model: PureSpikeFormer, sal_blend: float = 0.35, sal_floor: float = 0.10) -> None:
+        super().__init__()
+        self.base = base_model
+        self.sal_blend = sal_blend
+        self.sal_floor = sal_floor
+        dim = base_model.dim
+        self.aux_proj_b1 = nn.Linear(dim, 2 * dim, bias=False)
+        self.aux_proj_b2 = nn.Linear(dim, 2 * dim, bias=False)
+        self.aux_proj_b3 = nn.Linear(dim, 2 * dim, bias=False)
+        nn.init.zeros_(self.aux_proj_b1.weight)
+        nn.init.zeros_(self.aux_proj_b2.weight)
+        nn.init.zeros_(self.aux_proj_b3.weight)
+        self.gate_b1 = nn.Parameter(torch.tensor(0.15))
+        self.gate_b2 = nn.Parameter(torch.tensor(0.25))
+        self.gate_b3 = nn.Parameter(torch.tensor(0.25))
+
+    def forward(self, events: torch.Tensor) -> dict[str, torch.Tensor]:
+        b, t_steps = events.shape[0], events.shape[1]
+        p_size = int(self.base.patch.proj.stride[0])
+        ev_map = F.avg_pool2d(events.sum(dim=(1, 2)).unsqueeze(1), kernel_size=p_size, stride=p_size).reshape(b, 1, -1, 1)
+        sal_w = (ev_map + self.sal_floor) / (ev_map + self.sal_floor).sum(dim=2, keepdim=True)
+
+        patch_m, local_m = None, None
+        states: list[dict[str, object] | None] = [None] * len(self.base.blocks)
+        block_steps: list[list[torch.Tensor]] = [[] for _ in range(len(self.base.blocks))]
+        for t in range(t_steps):
+            x, patch_m, local_m, _ = self.base.patch(events[:, t], patch_m, local_m, t)
+            for i, blk in enumerate(self.base.blocks):
+                x, states[i], _ = blk(x, states[i], t)
+                block_steps[i].append(x)
+
+        sem_m = None
+        sem_patch_steps = []
+        g1 = 0.20 * torch.tanh(self.gate_b1)
+        g2 = 0.30 * torch.tanh(self.gate_b2)
+        g3 = 0.30 * torch.tanh(self.gate_b3)
+        for t in range(t_steps):
+            cur = self.base.semantic_proj(block_steps[-1][t])
+            if len(block_steps) >= 4:
+                cur = (
+                    cur
+                    + g1 * self.aux_proj_b1(block_steps[0][t])
+                    + g2 * self.aux_proj_b2(block_steps[1][t])
+                    + g3 * self.aux_proj_b3(block_steps[2][t])
+                )
+            cur = self.base.semantic_norm(cur, t)
+            sem_spk, sem_m = self.base.semantic_lif(cur, sem_m)
+            pos, neg = sem_spk.chunk(2, dim=-1)
+            sem_patch_steps.append(pos - neg)
+
+        sem_patch = torch.stack(sem_patch_steps, dim=1).float()
+        if self.base.temporal_logits is not None:
+            w_time = F.softmax(self.base.temporal_logits[:t_steps], dim=0).view(1, t_steps, 1, 1)
+            sem_t = (sem_patch * w_time).sum(dim=1)
+        else:
+            sem_t = sem_patch.mean(dim=1)
+        emb_unif = F.normalize(sem_t.mean(dim=1), dim=-1)
+        emb_sal = F.normalize((sem_t * sal_w.squeeze(1)).sum(dim=1), dim=-1)
+        emb_blend = F.normalize(emb_unif + self.sal_blend * emb_sal, dim=-1)
+        return {"embedding": emb_blend, "embedding_unif": emb_unif}
+
+
 @torch.no_grad()
 def whiten_block(
     x_train: torch.Tensor,
@@ -291,6 +356,7 @@ def evaluate_all_modes(
     run_full_probes: bool = True,
     saliency_floor: float = 0.10,
     saliency_alpha: float = 0.35,
+    self_saliency_alpha: float = 0.15,
 ) -> dict[str, dict[str, object]]:
     """Extract multi-depth features and evaluate all 384-d representation modes on U1."""
     model.eval()
@@ -299,7 +365,7 @@ def evaluate_all_modes(
 
     @torch.no_grad()
     def collect(x_u8: torch.Tensor, bs: int = 128) -> dict[str, torch.Tensor]:
-        emb_l, core_l, fused_l, lay_l, mem_l, sal_l = [], [], [], [], [], []
+        emb_l, core_l, fused_l, lay_l, mem_l, sal_l, self_sal_l = [], [], [], [], [], [], []
         for i in range(0, len(x_u8), bs):
             x = x_u8[i : i + bs].to(device, non_blocking=True).float() / 255.0
             ev_map = F.avg_pool2d(x.sum(dim=(1, 2)).unsqueeze(1), kernel_size=4, stride=4).reshape(x.shape[0], 1, -1, 1)
@@ -311,17 +377,22 @@ def evaluate_all_modes(
                 fused_l.append(fused.float().cpu())
             tp = out["token_pyramid"].float().mean(dim=2)
             sal_pool = F.normalize((tp * sal_w).sum(dim=2), dim=-1)
+            self_w = tp[:, 3:4].mean(dim=-1, keepdim=True) + 0.05
+            self_w = self_w / self_w.sum(dim=2, keepdim=True)
+            self_sal_pool = F.normalize((tp * self_w).sum(dim=2), dim=-1)
             emb_l.append(out["embedding"].float().cpu())
             core_l.append(out["core_embedding"].float().cpu())
             lay_l.append(out["layer_embeddings"].float().cpu())
             mem_l.append(out["membrane_embeddings"].float().cpu())
             sal_l.append(sal_pool.float().cpu())
+            self_sal_l.append(self_sal_pool.float().cpu())
         res_dict = {
             "emb": torch.cat(emb_l, dim=0),
             "core": torch.cat(core_l, dim=0),
             "layers": torch.cat(lay_l, dim=0),
             "memb": torch.cat(mem_l, dim=0),
             "sal": torch.cat(sal_l, dim=0),
+            "self_sal": torch.cat(self_sal_l, dim=0),
         }
         if fused_l:
             res_dict["fused"] = torch.cat(fused_l, dim=0)
@@ -366,6 +437,31 @@ def evaluate_all_modes(
     ]
     tr_sal384, va_sal384 = block_whiten_pca384(spk_sal_blocks, pb=0.30, pg=0.35)
 
+    spk_dualsal_blocks = [
+        (1.2, tr_c["emb"], va_c["emb"]),
+        (
+            1.0,
+            F.normalize(tr_c["core"] + saliency_alpha * tr_c["sal"][:, 3] + self_saliency_alpha * tr_c["self_sal"][:, 3], dim=-1),
+            F.normalize(va_c["core"] + saliency_alpha * va_c["sal"][:, 3] + self_saliency_alpha * va_c["self_sal"][:, 3], dim=-1),
+        ),
+        (
+            0.6,
+            F.normalize(tr_c["layers"][:, 1] + saliency_alpha * tr_c["sal"][:, 0] + self_saliency_alpha * tr_c["self_sal"][:, 0], dim=-1),
+            F.normalize(va_c["layers"][:, 1] + saliency_alpha * va_c["sal"][:, 0] + self_saliency_alpha * va_c["self_sal"][:, 0], dim=-1),
+        ),
+        (
+            0.8,
+            F.normalize(tr_c["layers"][:, 2] + saliency_alpha * tr_c["sal"][:, 1] + self_saliency_alpha * tr_c["self_sal"][:, 1], dim=-1),
+            F.normalize(va_c["layers"][:, 2] + saliency_alpha * va_c["sal"][:, 1] + self_saliency_alpha * va_c["self_sal"][:, 1], dim=-1),
+        ),
+        (
+            1.0,
+            F.normalize(tr_c["layers"][:, 3] + saliency_alpha * tr_c["sal"][:, 2] + self_saliency_alpha * tr_c["self_sal"][:, 2], dim=-1),
+            F.normalize(va_c["layers"][:, 3] + saliency_alpha * va_c["sal"][:, 2] + self_saliency_alpha * va_c["self_sal"][:, 2], dim=-1),
+        ),
+    ]
+    tr_dsal384, va_dsal384 = block_whiten_pca384(spk_dualsal_blocks, pb=0.30, pg=0.35)
+
     all9_blocks = spk_blocks + [
         (0.6, tr_c["memb"][:, 0], va_c["memb"][:, 0]),
         (0.8, tr_c["memb"][:, 1], va_c["memb"][:, 1]),
@@ -382,6 +478,7 @@ def evaluate_all_modes(
         modes["bridged_384"] = (tr_c["fused"], va_c["fused"])
     modes["purespike_pca384"] = (tr_spk384, va_spk384)
     modes["purespike_sal_pca384"] = (tr_sal384, va_sal384)
+    modes["purespike_dualsal_pca384"] = (tr_dsal384, va_dsal384)
     modes["allblocks9_pca384"] = (tr_all9_384, va_all9_384)
 
     results: dict[str, dict[str, object]] = {}
@@ -403,6 +500,7 @@ def evaluate_all_modes(
             "emb_whiten_384",
             "purespike_pca384",
             "purespike_sal_pca384",
+            "purespike_dualsal_pca384",
             "allblocks9_pca384",
         ):
             r_acc, _ = ridge_eval(x_tr, y_tr, x_va, y_va)
