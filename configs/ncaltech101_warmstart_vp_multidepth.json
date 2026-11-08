@@ -41,13 +41,17 @@
   "flip_prob": 0.5,
   "whiten_pb": 0.3,
   "whiten_pg": 0.35,
+  "saliency_floor": 0.1,
+  "saliency_alpha": 0.35,
   "lock_bn_running_stats": true,
   "labels_used": false,
   "seed": 42,
   "reported_checkpoints": {
-    "best_emb_sha256": "fc762324fd6aca04e07ba6ccce912b4b49638b0e51723fece619d9a483b99a2f",
-    "best_allblocks9_sha256": "349de2c6dfde1ece5c5a4503f725e17e55ad41d40ede3612599c6759d4c20ecb",
-    "last_sha256": "efe74fe65b60b8a0400142ac86d4ced76946e7610aae5021f7529fe2c44b1b39"
+    "r4_best_emb_sha256": "fc762324fd6aca04e07ba6ccce912b4b49638b0e51723fece619d9a483b99a2f",
+    "r4_best_allblocks9_sha256": "349de2c6dfde1ece5c5a4503f725e17e55ad41d40ede3612599c6759d4c20ecb",
+    "r4_last_purespike_sha256": "efe74fe65b60b8a0400142ac86d4ced76946e7610aae5021f7529fe2c44b1b39",
+    "r5_best_emb_sha256": "a8978e1832440db670e4cdb7030537e931f09ea291467a140633099867d46869",
+    "r5_best_purespike_sal_sha256": "cc396138559606b5e8bf94cee1348caf71fc118fbfba1be455ba6595b8a07ab2"
   },
   "reported_u1_metrics": {
     "baseline_epoch39_emb_384": {
@@ -56,29 +60,44 @@
       "val_lp_top1": 0.4711111111111111,
       "train_loo_knn": 0.8388961424332344
     },
-    "epoch12_emb_384": {
+    "r4_epoch12_emb_384": {
       "val_knn_top1": 0.4688888888888889,
       "val_ridge_top1": 0.44666666666666666,
       "val_lp_top1": 0.47333333333333333,
       "train_loo_knn": 0.8501483679525222
     },
-    "epoch12_emb_whiten_384": {
+    "r5_epoch6_emb_384": {
+      "val_knn_top1": 0.47,
+      "val_ridge_top1": 0.4488888888888889,
+      "val_lp_top1": 0.4655555486679077,
+      "val_cosine_lp_top1": 0.47777777910232544,
+      "train_loo_knn": 0.8514980673789978
+    },
+    "r4_epoch12_emb_whiten_384": {
       "val_knn_top1": 0.4866666666666667,
       "val_ridge_top1": 0.4477777777777778,
       "val_lp_top1": 0.47333333333333333,
       "train_loo_knn": 0.8471810089020771
     },
-    "epoch8_allblocks9_pca384": {
+    "r4_epoch8_allblocks9_pca384": {
       "val_knn_top1": 0.4955555555555556,
       "val_ridge_top1": 0.4622222222222222,
       "val_lp_top1": 0.47444444444444445,
       "train_loo_knn": 0.8109792284866469
     },
-    "epoch12_purespike_pca384": {
+    "r4_epoch12_purespike_pca384": {
       "val_knn_top1": 0.5011111111111111,
       "val_ridge_top1": 0.47,
       "val_lp_top1": 0.47555555555555556,
+      "val_cosine_lp_top1": 0.5077777777777778,
       "train_loo_knn": 0.8256676557863502
+    },
+    "r4_epoch12_purespike_sal_pca384": {
+      "val_knn_top1": 0.5044444444444445,
+      "val_ridge_top1": 0.4666666666666667,
+      "val_lp_top1": 0.47333333333333333,
+      "val_cosine_lp_top1": 0.5044444444444445,
+      "train_loo_knn": 0.8263134956359863
     }
   }
 }

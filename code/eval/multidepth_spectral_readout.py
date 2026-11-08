@@ -238,6 +238,47 @@ def linear_probe(
     return history[-1], {"epochs": epochs, "lr": lr, "final_val_acc": history[-1]}
 
 
+def cosine_linear_probe(
+    train_x: torch.Tensor,
+    train_y: torch.Tensor,
+    val_x: torch.Tensor,
+    val_y: torch.Tensor,
+    temp: float = 16.0,
+    wd: float = 1e-2,
+    lr: float = 1e-2,
+    epochs: int = 150,
+    seed: int = 42,
+    device: str | torch.device = "cpu",
+) -> tuple[float, dict[str, object]]:
+    """Centroid-initialized temperature-scaled cosine classifier on unit-sphere features."""
+    torch.manual_seed(seed)
+    num_classes = int(train_y.max().item()) + 1
+    x_tr = F.normalize(train_x.to(device).float(), dim=-1)
+    x_va = F.normalize(val_x.to(device).float(), dim=-1)
+    y_tr = train_y.to(device)
+    y_va = val_y.to(device)
+
+    weight = nn.Parameter(torch.zeros(num_classes, x_tr.shape[1], device=device))
+    with torch.no_grad():
+        for c in range(num_classes):
+            mask = y_tr == c
+            if mask.any():
+                weight.data[c] = F.normalize(x_tr[mask].mean(dim=0), dim=-1)
+    opt = torch.optim.AdamW([weight], lr=lr, weight_decay=wd)
+    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
+    for _ in range(epochs):
+        opt.zero_grad()
+        logits = temp * (x_tr @ F.normalize(weight, dim=-1).t())
+        loss = F.cross_entropy(logits, y_tr, label_smoothing=0.1)
+        loss.backward()
+        opt.step()
+        sched.step()
+    with torch.no_grad():
+        pred = (temp * (x_va @ F.normalize(weight, dim=-1).t())).argmax(dim=-1)
+        val_acc = float((pred == y_va).float().mean().item())
+    return val_acc, {"epochs": epochs, "temp": temp, "lr": lr, "final_val_acc": val_acc}
+
+
 def evaluate_all_modes(
     model: PureSpikeFormer,
     head: DetachedMultiDepthHead | None,
@@ -248,6 +289,8 @@ def evaluate_all_modes(
     device: torch.device,
     z_va_teacher: torch.Tensor | None = None,
     run_full_probes: bool = True,
+    saliency_floor: float = 0.10,
+    saliency_alpha: float = 0.35,
 ) -> dict[str, dict[str, object]]:
     """Extract multi-depth features and evaluate all 384-d representation modes on U1."""
     model.eval()
@@ -256,23 +299,29 @@ def evaluate_all_modes(
 
     @torch.no_grad()
     def collect(x_u8: torch.Tensor, bs: int = 128) -> dict[str, torch.Tensor]:
-        emb_l, core_l, fused_l, lay_l, mem_l = [], [], [], [], []
+        emb_l, core_l, fused_l, lay_l, mem_l, sal_l = [], [], [], [], [], []
         for i in range(0, len(x_u8), bs):
             x = x_u8[i : i + bs].to(device, non_blocking=True).float() / 255.0
+            ev_map = F.avg_pool2d(x.sum(dim=(1, 2)).unsqueeze(1), kernel_size=4, stride=4).reshape(x.shape[0], 1, -1, 1)
+            sal_w = (ev_map + saliency_floor) / (ev_map + saliency_floor).sum(dim=2, keepdim=True)
             with torch.amp.autocast("cuda", dtype=torch.bfloat16, enabled=(device.type == "cuda")):
-                out = model(x, return_layers=True, return_membranes=True)
+                out = model(x, return_layers=True, return_membranes=True, return_token_layers=4)
             if head is not None:
                 fused, _ = head(out)
                 fused_l.append(fused.float().cpu())
+            tp = out["token_pyramid"].float().mean(dim=2)
+            sal_pool = F.normalize((tp * sal_w).sum(dim=2), dim=-1)
             emb_l.append(out["embedding"].float().cpu())
             core_l.append(out["core_embedding"].float().cpu())
             lay_l.append(out["layer_embeddings"].float().cpu())
             mem_l.append(out["membrane_embeddings"].float().cpu())
+            sal_l.append(sal_pool.float().cpu())
         res_dict = {
             "emb": torch.cat(emb_l, dim=0),
             "core": torch.cat(core_l, dim=0),
             "layers": torch.cat(lay_l, dim=0),
             "memb": torch.cat(mem_l, dim=0),
+            "sal": torch.cat(sal_l, dim=0),
         }
         if fused_l:
             res_dict["fused"] = torch.cat(fused_l, dim=0)
@@ -292,6 +341,31 @@ def evaluate_all_modes(
     ]
     tr_spk384, va_spk384 = block_whiten_pca384(spk_blocks, pb=0.30, pg=0.35)
 
+    spk_sal_blocks = [
+        (1.2, tr_c["emb"], va_c["emb"]),
+        (
+            1.0,
+            F.normalize(tr_c["core"] + saliency_alpha * tr_c["sal"][:, 3], dim=-1),
+            F.normalize(va_c["core"] + saliency_alpha * va_c["sal"][:, 3], dim=-1),
+        ),
+        (
+            0.6,
+            F.normalize(tr_c["layers"][:, 1] + saliency_alpha * tr_c["sal"][:, 0], dim=-1),
+            F.normalize(va_c["layers"][:, 1] + saliency_alpha * va_c["sal"][:, 0], dim=-1),
+        ),
+        (
+            0.8,
+            F.normalize(tr_c["layers"][:, 2] + saliency_alpha * tr_c["sal"][:, 1], dim=-1),
+            F.normalize(va_c["layers"][:, 2] + saliency_alpha * va_c["sal"][:, 1], dim=-1),
+        ),
+        (
+            1.0,
+            F.normalize(tr_c["layers"][:, 3] + saliency_alpha * tr_c["sal"][:, 2], dim=-1),
+            F.normalize(va_c["layers"][:, 3] + saliency_alpha * va_c["sal"][:, 2], dim=-1),
+        ),
+    ]
+    tr_sal384, va_sal384 = block_whiten_pca384(spk_sal_blocks, pb=0.30, pg=0.35)
+
     all9_blocks = spk_blocks + [
         (0.6, tr_c["memb"][:, 0], va_c["memb"][:, 0]),
         (0.8, tr_c["memb"][:, 1], va_c["memb"][:, 1]),
@@ -307,6 +381,7 @@ def evaluate_all_modes(
     if "fused" in tr_c:
         modes["bridged_384"] = (tr_c["fused"], va_c["fused"])
     modes["purespike_pca384"] = (tr_spk384, va_spk384)
+    modes["purespike_sal_pca384"] = (tr_sal384, va_sal384)
     modes["allblocks9_pca384"] = (tr_all9_384, va_all9_384)
 
     results: dict[str, dict[str, object]] = {}
@@ -323,11 +398,19 @@ def evaluate_all_modes(
         }
         if z_va_teacher is not None and m_name in ("emb_384", "bridged_384"):
             entry["val_teacher_cos"] = float(F.cosine_similarity(x_va, z_va_teacher, dim=-1).mean())
-        if run_full_probes and m_name in ("emb_384", "emb_whiten_384", "purespike_pca384", "allblocks9_pca384"):
+        if run_full_probes and m_name in (
+            "emb_384",
+            "emb_whiten_384",
+            "purespike_pca384",
+            "purespike_sal_pca384",
+            "allblocks9_pca384",
+        ):
             r_acc, _ = ridge_eval(x_tr, y_tr, x_va, y_va)
             lp_acc, _ = linear_probe(x_tr, y_tr, x_va, y_va, device=device)
+            clp_acc, _ = cosine_linear_probe(x_tr, y_tr, x_va, y_va, device=device)
             entry["ridge_val"] = r_acc
             entry["lp_val"] = lp_acc
+            entry["cosine_lp_val"] = clp_acc
         results[m_name] = entry
     return results
 

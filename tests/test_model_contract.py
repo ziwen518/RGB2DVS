@@ -14,6 +14,7 @@ from model import PureSpikeFormer  # noqa: E402
 from multidepth_spectral_readout import (  # noqa: E402
     DetachedMultiDepthHead,
     block_whiten_pca384,
+    cosine_linear_probe,
     whiten_block,
 )
 from train_warmstart_vp_multidepth import gpu_vp_augment  # noqa: E402
@@ -84,3 +85,9 @@ def test_multidepth_spectral_readout_and_detached_head():
     assert bridged.shape == (8, 32)
     assert cat_feat.shape == (8, 32 * 7)
     assert torch.allclose(bridged.norm(dim=-1), torch.ones(8), atol=1e-5)
+
+    y_tr = torch.randint(0, 4, (64,))
+    y_va = torch.randint(0, 4, (16,))
+    clp_acc, clp_meta = cosine_linear_probe(z_tr, y_tr, z_va, y_va, epochs=5, device="cpu")
+    assert 0.0 <= clp_acc <= 1.0
+    assert clp_meta["epochs"] == 5
