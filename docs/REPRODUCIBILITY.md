@@ -8,7 +8,13 @@ scikit-learn, matplotlib, OpenCV, requests, or v2e, depending on the selected
 script. Consult that script's imports and `--help` before running it.
 
 The recommended training entry point is
-`code/train/train_clean_observable_spikeformer_eval_safe.py`. The original
+`code/train/train_clean_observable_spikeformer_eval_safe.py`. For post-convergence
+warm-start refinement with locked BNTT running statistics, variance-preserving
+spatial translation/flip invariance, full-bank neighborhood KL distillation, and
+multi-depth spectral readout, use
+`code/train/train_warmstart_vp_multidepth.py` together with the standalone
+evaluator `code/eval/multidepth_spectral_readout.py` (see
+`configs/ncaltech101_warmstart_vp_multidepth.json`). The original
 trainer is retained so that historical checkpoints can be attributed to the
 source that actually produced them. Core model and trainer implementations are
 unchanged by repository cleanup.

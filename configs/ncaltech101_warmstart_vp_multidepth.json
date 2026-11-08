@@ -1,0 +1,84 @@
+{
+  "name": "ncaltech101_warmstart_vp_multidepth",
+  "trainer": "code/train/train_warmstart_vp_multidepth.py",
+  "evaluator": "code/eval/multidepth_spectral_readout.py",
+  "dataset": "ncaltech101_aligned_u1",
+  "data_root": "data/ncaltech101_aligned_u1",
+  "split_manifest": "data/ncaltech101_aligned_u1/split_manifest_u1.json",
+  "target_cache": "data/teacher_cache/ncaltech101_u1/targets_learned_proxy.pt",
+  "base_checkpoint": "runs/ncaltech101/full_ncaltech101_learned_proxy_s42/best.pt",
+  "base_checkpoint_sha256": "ebaa2f71c431f82dd5969c7706d8ab2b25c16c7f62c0dd7e567919dd494e2596",
+  "steps": 16,
+  "size": 48,
+  "frame_mode": "count_global",
+  "dim": 384,
+  "depth": 4,
+  "heads": 6,
+  "patch_size": 4,
+  "threshold": 0.5,
+  "block_spiking": "full_respike",
+  "qkv_temporal_mode": "standard",
+  "signed_readout": true,
+  "multidepth_readout": true,
+  "multidepth_readout_layers": 3,
+  "membrane_readout": false,
+  "epochs": 12,
+  "batch_size": 24,
+  "eval_every": 2,
+  "lr_head": 0.00015,
+  "lr_body": 2e-05,
+  "lr_dino": 1e-06,
+  "weight_decay": 0.01,
+  "observable_weight": 10.0,
+  "geometry_weight": 1.0,
+  "w_nbr_kl": 0.35,
+  "w_cons": 0.5,
+  "w_bridge": 2.0,
+  "nbr_k": 20,
+  "nbr_temp_t": 0.07,
+  "nbr_temp_s": 0.1,
+  "shift_px": 3,
+  "flip_prob": 0.5,
+  "whiten_pb": 0.3,
+  "whiten_pg": 0.35,
+  "lock_bn_running_stats": true,
+  "labels_used": false,
+  "seed": 42,
+  "reported_checkpoints": {
+    "best_emb_sha256": "fc762324fd6aca04e07ba6ccce912b4b49638b0e51723fece619d9a483b99a2f",
+    "best_allblocks9_sha256": "349de2c6dfde1ece5c5a4503f725e17e55ad41d40ede3612599c6759d4c20ecb",
+    "last_sha256": "efe74fe65b60b8a0400142ac86d4ced76946e7610aae5021f7529fe2c44b1b39"
+  },
+  "reported_u1_metrics": {
+    "baseline_epoch39_emb_384": {
+      "val_knn_top1": 0.4588888888888889,
+      "val_ridge_top1": 0.44666666666666666,
+      "val_lp_top1": 0.4711111111111111,
+      "train_loo_knn": 0.8388961424332344
+    },
+    "epoch12_emb_384": {
+      "val_knn_top1": 0.4688888888888889,
+      "val_ridge_top1": 0.44666666666666666,
+      "val_lp_top1": 0.47333333333333333,
+      "train_loo_knn": 0.8501483679525222
+    },
+    "epoch12_emb_whiten_384": {
+      "val_knn_top1": 0.4866666666666667,
+      "val_ridge_top1": 0.4477777777777778,
+      "val_lp_top1": 0.47333333333333333,
+      "train_loo_knn": 0.8471810089020771
+    },
+    "epoch8_allblocks9_pca384": {
+      "val_knn_top1": 0.4955555555555556,
+      "val_ridge_top1": 0.4622222222222222,
+      "val_lp_top1": 0.47444444444444445,
+      "train_loo_knn": 0.8109792284866469
+    },
+    "epoch12_purespike_pca384": {
+      "val_knn_top1": 0.5011111111111111,
+      "val_ridge_top1": 0.47,
+      "val_lp_top1": 0.47555555555555556,
+      "train_loo_knn": 0.8256676557863502
+    }
+  }
+}

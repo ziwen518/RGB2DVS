@@ -58,9 +58,10 @@ See [reproducibility notes](docs/REPRODUCIBILITY.md) for configuration details,
 locked splits, evaluation boundaries, and source provenance.
 
 - `code/core/`: student architecture, event dataset readers, and transforms.
-- `code/train/`: training entry points, including the evaluation-safe trainer.
+- `code/train/`: training entry points, including the evaluation-safe trainer and the variance-preserving multi-depth warm-start trainer (`train_warmstart_vp_multidepth.py`).
+- `code/eval/`: standalone multi-depth spectral whitening and U1 evaluation probes (`multidepth_spectral_readout.py`).
 - `code/tools/`: teacher-target preparation, event generation, and representation/downstream evaluation utilities.
-- `configs/`: reference experiment definitions and a locked real CIFAR10-DVS split.
+- `configs/`: reference experiment definitions (`ncaltech101_warmstart_vp_multidepth.json`, `standard_purespikeformer_*`) and a locked real CIFAR10-DVS split.
 - `tests/`: a fast CPU smoke test for the model's tensor and spike-output contract. It uses synthetic input and does not measure representation quality; use the dataset-based evaluation tools for empirical results.
 
 For new runs, use `train_clean_observable_spikeformer_eval_safe.py`. It keeps the train-only target-cache protocol separate from validation. When reporting historical results, record the training entry point and source revision used to produce each checkpoint.
