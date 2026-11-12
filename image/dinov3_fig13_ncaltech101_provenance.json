@@ -1,0 +1,87 @@
+{
+  "protocol": "DINOv3 Section 6.1.1 / Figure 13 dense patch PCA-to-RGB with train-only spatial position debiasing",
+  "dataset": "N-Caltech101 (locked U1 student_split.json)",
+  "train_samples_for_position_debiasing": 6909,
+  "display_split": "validation_ids_only",
+  "test_split_accessed": false,
+  "labels_used": false,
+  "display_ids": [
+    "events/airplanes/image_0774.bin",
+    "events/car_side/image_0093.bin",
+    "events/Motorbikes/image_0428.bin",
+    "events/Faces_easy/image_0087.bin",
+    "events/butterfly/image_0034.bin",
+    "events/watch/image_0153.bin"
+  ],
+  "models": {
+    "teacher": {
+      "adapter": "iclr_execution_20260907/runs/ncal_event_proxy_label_free_s42/final_adapter.pt",
+      "adapter_sha256": "aefff8d5f368640f1684ee469fc7fcbf1815893643fb47acfb58432c521aa542",
+      "grid": [
+        16,
+        16
+      ],
+      "mean_pc123_pct": [
+        24.4,
+        13.41,
+        10.01
+      ]
+    },
+    "baseline": {
+      "checkpoint": "iclr_execution_20260907/runs/full_ncaltech101_learned_proxy_s42/best.pt",
+      "sha256": "04371dce8d49572b357fae3dbce4964ed6bd17cc3c0bd4ab4ba3aaf2517be20b",
+      "epoch": 39,
+      "grid": [
+        12,
+        12
+      ],
+      "mean_pc123_pct": [
+        50.37,
+        17.3,
+        4.97
+      ]
+    },
+    "warmstart": {
+      "checkpoint": "iclr_execution_20260907/routeA_round4_20261108/runs/stage3_full_20ep/best_purespike_dualsal.pt",
+      "sha256": "4bd6f7709fa8e8a691682d6865f697055f440af2205d035f2900107f47d43617",
+      "epoch": 11,
+      "grid": [
+        12,
+        12
+      ],
+      "mean_pc123_pct": [
+        48.42,
+        17.28,
+        4.83
+      ]
+    },
+    "stage2": {
+      "checkpoint": "iclr_execution_20260907/overnight_20261111/runs/stage2_nextgen_dino36911_45ep/best_purespike.pt",
+      "sha256": "1ecbf7d6a4bab343897d387bd7f547abb284b276635ae9bf296cc1f94e0a8d0b",
+      "epoch": 31,
+      "grid": [
+        12,
+        12
+      ],
+      "mean_pc123_pct": [
+        15.32,
+        8.22,
+        5.97
+      ]
+    },
+    "stage3": {
+      "checkpoint": "iclr_execution_20260907/overnight_20261111/runs/stage3_hires256_masked_45ep/best_purespike.pt",
+      "sha256": "1ad8cb99c9a5afbbbbfbe5024995151f7dcc6c6eb871b57b8b6b87085612671c",
+      "epoch": 36,
+      "grid": [
+        16,
+        16
+      ],
+      "mean_pc123_pct": [
+        17.54,
+        7.95,
+        6.03
+      ]
+    }
+  }
+}

@@ -148,6 +148,12 @@ def main() -> None:
     parser.add_argument("--lr-rest", type=float, default=1e-5)
     parser.add_argument("--lr-head", type=float, default=3e-4)
     parser.add_argument("--max-shift", type=int, default=3)
+    parser.add_argument(
+        "--p-flip",
+        type=float,
+        default=0.0,
+        help="Horizontal flip probability (0.0 preserves canonical N-Caltech101 horizontal orientation)",
+    )
     parser.add_argument("--mem-fraction", type=float, default=0.25)
     parser.add_argument("--seed", type=int, default=20261108)
     parser.add_argument("--gpu", type=int, default=0)
@@ -235,8 +241,8 @@ def main() -> None:
                 continue
             idx_dev = idx.to(device)
             x_clean = x_tr_u8[idx].to(device, non_blocking=True).float() / 255.0
-            x_v1 = gpu_vp_augment(x_clean, max_shift=0, p_flip=0.5, p_shift=0.0)
-            x_v2 = gpu_vp_augment(x_clean, max_shift=args.max_shift, p_flip=0.5, p_shift=0.85)
+            x_v1 = gpu_vp_augment(x_clean, max_shift=0, p_flip=args.p_flip, p_shift=0.0)
+            x_v2 = gpu_vp_augment(x_clean, max_shift=args.max_shift, p_flip=args.p_flip, p_shift=0.85)
             tgt = t_train[idx_dev]
 
             opt_model.zero_grad(set_to_none=True)

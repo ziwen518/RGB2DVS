@@ -1,0 +1,160 @@
+{
+  "name": "ncaltech101_nextgen_hires256_u1",
+  "trainer": "code/train/train_nextgen_dense_spikeformer.py",
+  "evaluator": "code/eval/multidepth_spectral_readout.py",
+  "dataset": "ncaltech101_aligned_u1",
+  "split_manifest": "data/teacher_cache/ncaltech101/student_split.json",
+  "frames_root": "data/ncaltech101_rgb_event/frames_ncaltech101_t16_s48",
+  "dense_teacher_cache": "iclr_execution_20260907/overnight_20261111/proxy_train_dense_cache.pt",
+  "protocol": {
+    "train_samples": 6909,
+    "validation_samples": 900,
+    "representation_dim": 384,
+    "labels_used_in_student_training": false,
+    "test_split_accessed": false,
+    "whitening_and_pca_fit_split": "train_ids_only"
+  },
+  "stage2_config": {
+    "description": "Next-Gen PureSpikeFormer (12x12 = 144 tokens) with DINOv2 late blocks [3,6,9,11], local_structure_mixer, multidepth_readout, canonical p_flip=0.0, and dense saliency patch affinity",
+    "patch_size": 4,
+    "image_size": 48,
+    "steps": 16,
+    "dim": 384,
+    "depth": 4,
+    "heads": 6,
+    "dino_source_blocks_0based": [3, 6, 9, 11],
+    "local_stem": true,
+    "local_structure_mixer": true,
+    "local_mixer_dilations": [1, 2],
+    "signed_readout": true,
+    "multidepth_readout": true,
+    "multidepth_readout_layers": 3,
+    "epochs": 40,
+    "warmup_epochs": 3,
+    "unique_batch_size": 28,
+    "paired_views_batch_size": 56,
+    "lr": 0.001,
+    "pretrained_lr": 0.00014,
+    "ema_decay": 0.994,
+    "p_flip": 0.0,
+    "max_shift_px": 3,
+    "drop_ratio": 0.0,
+    "seed": 42
+  },
+  "stage3_config": {
+    "description": "High-Res 16x16 PureSpikeFormer (patch_size=3, 256 tokens 1-to-1 with EventProxy-DINOv2) + Energy-Compensated Spatial Block Masked Event Distillation",
+    "patch_size": 3,
+    "image_size": 48,
+    "steps": 16,
+    "dim": 384,
+    "depth": 4,
+    "heads": 6,
+    "dino_source_blocks_0based": [3, 6, 9, 11],
+    "local_stem": true,
+    "local_structure_mixer": true,
+    "local_mixer_dilations": [1, 2],
+    "signed_readout": true,
+    "multidepth_readout": true,
+    "multidepth_readout_layers": 3,
+    "epochs": 40,
+    "warmup_epochs": 3,
+    "unique_batch_size": 18,
+    "paired_views_batch_size": 36,
+    "lr": 0.0009,
+    "pretrained_lr": 0.00013,
+    "ema_decay": 0.995,
+    "p_flip": 0.0,
+    "max_shift_px": 3,
+    "p_mask": 0.75,
+    "drop_ratio": 0.18,
+    "energy_compensation_clamp": [1.0, 1.35],
+    "seed": 2026
+  },
+  "reported_checkpoints": {
+    "stage2_best_purespike_ep31_sha256": "1ecbf7d6a4bab343897d387bd7f547abb284b276635ae9bf296cc1f94e0a8d0b",
+    "stage2_best_emb_sha256": "894eb2cb786aa0177e7ac26e550ac9e7ee2471715d78018209680f1b43d39671",
+    "stage3_best_purespike_ep36_sha256": "1ad8cb99c9a5afbbbbfbe5024995151f7dcc6c6eb871b57b8b6b87085612671c",
+    "stage3_best_emb_ep40_sha256": "e01d978ba83ffbe02a6ff317eebd6e9d8d1b1a90ace68b2c0688c2624e9d6130",
+    "stage3_best_purespike_bncal_ep36_sha256": "0480d7b753f7770d58b26a4912e5aab8a2ef43116bd9e82bdcb5258e0f614e46",
+    "stage3_best_emb_bncal_ep40_sha256": "230816d89990ddbc33f1ffad778f3a0c0a441767cf4ea09e10c3c07354046146"
+  },
+  "reported_u1_metrics": {
+    "historical_baseline_40ep_emb_384": {
+      "val_knn_top1": 0.4588888888888889,
+      "val_ridge_top1": 0.44666666666666666,
+      "val_lp_top1": 0.4711111111111111,
+      "train_loo_knn": 0.8388961424332344
+    },
+    "historical_warmstart_ceiling_purespike_dualsal_pca384": {
+      "val_knn_top1": 0.5066666666666667,
+      "val_ridge_top1": 0.4666666666666667,
+      "val_lp_top1": 0.4744444489479065,
+      "val_cosine_lp_top1": 0.503333330154419,
+      "train_loo_knn": 0.8261687755584717
+    },
+    "stage1_readout_quad_dualsal_pca384": {
+      "val_knn_top1": 0.5011111111111111,
+      "val_ridge_top1": 0.4711111111111111,
+      "val_lp_top1": 0.4811111111111111,
+      "val_cosine_lp_top1": 0.5133333333333333
+    },
+    "stage2_ep31_emb_384": {
+      "val_knn_top1": 0.59,
+      "val_ridge_top1": 0.5655555555555556,
+      "val_lp_top1": 0.5711111111111111,
+      "val_cosine_lp_top1": 0.5833333333333334,
+      "train_loo_knn": 0.9238674193081488
+    },
+    "stage2_ep31_emb_whiten_384": {
+      "val_knn_top1": 0.6144444444444445,
+      "val_ridge_top1": 0.5666666666666667,
+      "val_lp_top1": 0.5888888888888889,
+      "val_cosine_lp_top1": 0.6133333333333333,
+      "train_loo_knn": 0.9235779418150239
+    },
+    "stage2_ep31_purespike_quad_dualsal_pca384": {
+      "val_knn_top1": 0.6144444444444445,
+      "val_msr_uniform_knn_top1": 0.6111111111111112,
+      "val_ridge_top1": 0.5533333333333333,
+      "val_lp_top1": 0.5555555555555556,
+      "val_cosine_lp_top1": 0.6244444444444445,
+      "train_loo_knn": 0.9128672745694022
+    },
+    "stage3_ep40_emb_384": {
+      "val_knn_top1": 0.6166666666666667,
+      "val_ridge_top1": 0.5777777777777777,
+      "val_lp_top1": 0.5922222222222222,
+      "val_cosine_lp_top1": 0.6011111111111112,
+      "train_loo_knn": 0.9237226805615863
+    },
+    "stage3_ep36_emb_sal_whiten_384": {
+      "val_knn_top1": 0.63,
+      "val_ridge_top1": 0.5766666666666667,
+      "val_lp_top1": 0.5855555555555556,
+      "val_cosine_lp_top1": 0.6077777777777778,
+      "train_loo_knn": 0.9221305543493994
+    },
+    "stage3_ep36_purespike_quad_dualsal_pca384": {
+      "val_knn_top1": 0.6366666666666667,
+      "val_msr_uniform_knn_top1": 0.6344444444444445,
+      "val_ridge_top1": 0.56,
+      "val_lp_top1": 0.5722222222222222,
+      "val_cosine_lp_top1": 0.6255555555555555,
+      "train_loo_knn": 0.9135909683022145
+    },
+    "stage3_ep36_allblocks9_pca384": {
+      "val_knn_top1": 0.6255555555555555,
+      "val_ridge_top1": 0.5633333333333334,
+      "val_lp_top1": 0.5755555555555556,
+      "val_cosine_lp_top1": 0.6333333333333333,
+      "train_loo_knn": 0.9104067158778405
+    },
+    "multiscale_p4_p3_purespike_pca384": {
+      "val_knn_top1": 0.6488888888888888,
+      "val_ridge_top1": 0.5977777777777777,
+      "val_lp_top1": 0.5811111111111111,
+      "val_cosine_lp_top1": 0.6422222222222222,
+      "train_loo_knn": 0.9192357794181502
+    }
+  }
+}

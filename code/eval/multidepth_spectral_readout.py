@@ -365,10 +365,13 @@ def evaluate_all_modes(
 
     @torch.no_grad()
     def collect(x_u8: torch.Tensor, bs: int = 128) -> dict[str, torch.Tensor]:
-        emb_l, core_l, fused_l, lay_l, mem_l, sal_l, self_sal_l = [], [], [], [], [], [], []
+        emb_l, core_l, fused_l, lay_l, mem_l, sal_l, self_sal_l, quad_l = [], [], [], [], [], [], [], []
+        p_size = int(model.patch.proj.stride[0])
         for i in range(0, len(x_u8), bs):
             x = x_u8[i : i + bs].to(device, non_blocking=True).float() / 255.0
-            ev_map = F.avg_pool2d(x.sum(dim=(1, 2)).unsqueeze(1), kernel_size=4, stride=4).reshape(x.shape[0], 1, -1, 1)
+            ev_map = F.avg_pool2d(
+                x.sum(dim=(1, 2)).unsqueeze(1), kernel_size=p_size, stride=p_size
+            ).reshape(x.shape[0], 1, -1, 1)
             sal_w = (ev_map + saliency_floor) / (ev_map + saliency_floor).sum(dim=2, keepdim=True)
             with torch.amp.autocast("cuda", dtype=torch.bfloat16, enabled=(device.type == "cuda")):
                 out = model(x, return_layers=True, return_membranes=True, return_token_layers=4)
@@ -376,6 +379,11 @@ def evaluate_all_modes(
                 fused, _ = head(out)
                 fused_l.append(fused.float().cpu())
             tp = out["token_pyramid"].float().mean(dim=2)
+            side = int(round(tp.shape[2] ** 0.5))
+            b4_map = tp[:, 3].transpose(1, 2).reshape(tp.shape[0], tp.shape[3], side, side)
+            b4_quad = F.normalize(
+                F.adaptive_avg_pool2d(b4_map, (2, 2)).flatten(2).transpose(1, 2), dim=-1
+            )
             sal_pool = F.normalize((tp * sal_w).sum(dim=2), dim=-1)
             self_w = tp[:, 3:4].mean(dim=-1, keepdim=True) + 0.05
             self_w = self_w / self_w.sum(dim=2, keepdim=True)
@@ -386,6 +394,7 @@ def evaluate_all_modes(
             mem_l.append(out["membrane_embeddings"].float().cpu())
             sal_l.append(sal_pool.float().cpu())
             self_sal_l.append(self_sal_pool.float().cpu())
+            quad_l.append(b4_quad.float().cpu())
         res_dict = {
             "emb": torch.cat(emb_l, dim=0),
             "core": torch.cat(core_l, dim=0),
@@ -393,6 +402,7 @@ def evaluate_all_modes(
             "memb": torch.cat(mem_l, dim=0),
             "sal": torch.cat(sal_l, dim=0),
             "self_sal": torch.cat(self_sal_l, dim=0),
+            "b4_quad": torch.cat(quad_l, dim=0),
         }
         if fused_l:
             res_dict["fused"] = torch.cat(fused_l, dim=0)
@@ -462,6 +472,11 @@ def evaluate_all_modes(
     ]
     tr_dsal384, va_dsal384 = block_whiten_pca384(spk_dualsal_blocks, pb=0.30, pg=0.35)
 
+    spk_quad_dualsal_blocks = spk_dualsal_blocks + [
+        (0.35, tr_c["b4_quad"][:, q], va_c["b4_quad"][:, q]) for q in range(4)
+    ]
+    tr_qdsal384, va_qdsal384 = block_whiten_pca384(spk_quad_dualsal_blocks, pb=0.30, pg=0.35)
+
     all9_blocks = spk_blocks + [
         (0.6, tr_c["memb"][:, 0], va_c["memb"][:, 0]),
         (0.8, tr_c["memb"][:, 1], va_c["memb"][:, 1]),
@@ -479,6 +494,7 @@ def evaluate_all_modes(
     modes["purespike_pca384"] = (tr_spk384, va_spk384)
     modes["purespike_sal_pca384"] = (tr_sal384, va_sal384)
     modes["purespike_dualsal_pca384"] = (tr_dsal384, va_dsal384)
+    modes["purespike_quad_dualsal_pca384"] = (tr_qdsal384, va_qdsal384)
     modes["allblocks9_pca384"] = (tr_all9_384, va_all9_384)
 
     results: dict[str, dict[str, object]] = {}
@@ -501,6 +517,7 @@ def evaluate_all_modes(
             "purespike_pca384",
             "purespike_sal_pca384",
             "purespike_dualsal_pca384",
+            "purespike_quad_dualsal_pca384",
             "allblocks9_pca384",
         ):
             r_acc, _ = ridge_eval(x_tr, y_tr, x_va, y_va)
@@ -561,9 +578,14 @@ def main() -> None:
         run_full_probes=True,
     )
     for name, m in metrics.items():
-        extra = f" | Ridge={m['ridge_val']*100:.2f}% | LP={m['lp_val']*100:.2f}%" if "ridge_val" in m else ""
+        extra = ""
+        if "ridge_val" in m:
+            extra = (
+                f" | Ridge={m['ridge_val']*100:.2f}% | LP={m['lp_val']*100:.2f}% "
+                f"| CosLP={m['cosine_lp_val']*100:.2f}%"
+            )
         print(
-            f"{name:22s}: kNN={m['knn10_val']*100:.2f}% ({m['knn10_val_correct']}/900) "
+            f"{name:29s}: kNN={m['knn10_val']*100:.2f}% ({m['knn10_val_correct']}/900) "
             f"| LOO={m['knn10_train_loo']*100:.2f}%{extra}"
         )
     if args.out_json is not None:

@@ -16,7 +16,14 @@ from multidepth_spectral_readout import (  # noqa: E402
     NextGenMultiDepthSpikingStudent,
     block_whiten_pca384,
     cosine_linear_probe,
+    evaluate_all_modes,
     whiten_block,
+)
+from train_nextgen_dense_spikeformer import (  # noqa: E402
+    centered_saliency_patch_affinity,
+    forward_pure_rich,
+    gpu_vp_shift_and_energy_mask,
+    recalibrate_bn_on_train,
 )
 from train_warmstart_vp_multidepth import gpu_vp_augment  # noqa: E402
 
@@ -98,3 +105,66 @@ def test_multidepth_spectral_readout_and_detached_head():
     clp_acc, clp_meta = cosine_linear_probe(z_tr, y_tr, z_va, y_va, epochs=5, device="cpu")
     assert 0.0 <= clp_acc <= 1.0
     assert clp_meta["epochs"] == 5
+
+
+def test_nextgen_hires256_masked_distillation_and_dynamic_readout():
+    torch.manual_seed(7)
+    model = PureSpikeFormer(
+        in_channels=2,
+        dim=48,
+        depth=4,
+        heads=3,
+        patch_size=3,
+        threshold=0.5,
+        norm="bntt",
+        image_size=24,  # 24 / 3 = 8x8 = 64 tokens
+        temporal_readout="learned",
+        local_stem=True,
+        use_positional_bias=True,
+        attention_mode="normalized",
+        signed_readout=True,
+        multidepth_readout=True,
+        multidepth_readout_layers=3,
+        local_structure_mixer=True,
+        local_mixer_dilations=(1, 2),
+        temporal_steps=2,
+    )
+    events = torch.rand(3, 2, 2, 24, 24)
+    rich = forward_pure_rich(model, events, need_membranes=True)
+    assert rich["sem_patches"].shape == (3, 64, 48)
+    assert rich["tp_mean"].shape == (3, 4, 64, 48)
+    assert torch.allclose(rich["emb_blend"].norm(dim=-1), torch.ones(3), atol=1e-5)
+
+    # Coordinate-free patch affinity must be invariant to orthogonal rotations of teacher basis
+    q_orth, _ = torch.linalg.qr(torch.randn(48, 48))
+    t_patches = torch.randn(3, 64, 48)
+    loss_a = centered_saliency_patch_affinity(rich["sem_patches"], t_patches, rich["sal_w"])
+    loss_b = centered_saliency_patch_affinity(rich["sem_patches"], t_patches @ q_orth, rich["sal_w"])
+    assert torch.allclose(loss_a, loss_b, atol=1e-5)
+
+    # Energy-compensated patch masking keeps L1 event energy bounded in [1.0x, 1.35x] of masked sum
+    masked = gpu_vp_shift_and_energy_mask(
+        events, max_shift=2, p_shift=1.0, p_mask=1.0, drop_ratio=0.18, patch_size=3
+    )
+    assert masked.shape == events.shape
+    orig_sum = events.sum(dim=(1, 2, 3, 4))
+    masked_sum = masked.sum(dim=(1, 2, 3, 4))
+    assert torch.all(masked_sum <= orig_sum * 1.001)
+    assert torch.all(masked_sum >= orig_sum * 0.70)
+
+    # BNTT population calibration and dynamic `patch_size=3` U1 readout modes
+    x_tr_u8 = torch.randint(0, 10, (12, 2, 2, 24, 24), dtype=torch.uint8)
+    x_va_u8 = torch.randint(0, 10, (6, 2, 2, 24, 24), dtype=torch.uint8)
+    recalibrate_bn_on_train(model, x_tr_u8, torch.device("cpu"), bs=6)
+    ev = evaluate_all_modes(
+        model=model,
+        head=None,
+        x_tr_u8=x_tr_u8,
+        x_va_u8=x_va_u8,
+        y_tr=torch.randint(0, 3, (12,)),
+        y_va=torch.randint(0, 3, (6,)),
+        device=torch.device("cpu"),
+        run_full_probes=False,
+    )
+    assert "purespike_quad_dualsal_pca384" in ev
+    assert 0.0 <= float(ev["purespike_quad_dualsal_pca384"]["knn10_val"]) <= 1.0
